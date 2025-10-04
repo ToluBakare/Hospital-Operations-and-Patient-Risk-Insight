@@ -1,3 +1,12 @@
+---In this project I:
+------Queried and validated large relational healthcare databases.
+------Built patient cohorts for chronic disease tracking.
+------Conducted root-cause and trend analysis for operations.
+------Translate raw data into actionable insights for both clinical decision-making and operational efficiency.
+
+---Author: Tolu | date: 10-03-2025
+
+
 --Find all the patient's records in the appointments table
 SELECT *
 FROM dbo.[Appointments]
@@ -17,7 +26,7 @@ Group by department_name
 order by average_days_by_department DESC
 
 
---Categorize patients based on their lenght of stay in the hospital
+--Categorize patients based on their length of stay in the hospital
 
 SELECT patient_id, Days_in_the_hospital,
 CASE 
@@ -27,7 +36,7 @@ CASE
 END as stay_category
 FROM dbo.[Hospital Records]
 
---Count the number of patients in each category created
+--Count the number of patients in each stay category created above
 WITH category AS ( 
 SELECT patient_id, Days_in_the_hospital,
 CASE 
@@ -40,44 +49,7 @@ SELECT COUNT(*) AS number_of_patients, stay_category
 FROM category
 GROUP BY stay_category
 
---Getting the current date and time
-SELECT GETDATE () AS today
-
---Extract the day of the week from the "appointment_date" column in integer
-SELECT 
-appointment_date,
-DATEPART(weekday, appointment_date) As day_of_the_week
-FROM dbo.Appointments
---Extract the hour from the "appointment_time" column
-SELECT 
-appointment_time,
-DATEPART(hour, appointment_time) AS appointment_hour
-FROM dbo.Appointments
-
---Extract the day of the week from the "appointment_date" column in character strings
-SELECT appointment_date,
-DATENAME(weekday, appointment_date) AS day_of_the_week
-FROM dbo.[Appointments]
-
---Add five days to a date
-SELECT 
-DATEADD (day,5,'2024-10-01') AS new_date
-
-
-
---Subtract two months from a date
-SELECT 
-DATEADD (month, -2, '2024-10-01') AS new_date
-
---Retrieve the amount of days between January 1st 2024 and January 10th 2024
-SELECT DATEDIFF (day, '2024-01-01','2024-01-10') as date
-
-
---Retrieve the number of months between January 1st 2023 and May 10th 2024
-SELECT DATEDIFF (month, '2023-01-01','2024-05-10') as date
-
 --Calculate the difference between the arrival time and appointment time in hours
-
 SELECT DATEDIFF(minute, appointment_time, arrival_time) AS min_diff
 FROM dbo.Appointments
 
@@ -107,7 +79,7 @@ END  'safety_concern'
 FROM Healthcare_Database.dbo.[Outpatient Visits]
 
 
---Classify patients into high, medium or low risk based on their BMI and family risk of hypertension
+--Predict hypertension risk
 
 SELECT patient_id,
 patient_name, bmi,
@@ -119,9 +91,7 @@ CASE
 END 'risk category'
 FROM Healthcare_Database.dbo.[Hospital Records] 
 
-/*Create a series of CASE statements to predict the likelihood of hypertension development based on
-patient's age, BMI and family history of hypertension
-Exclude children from this model*/
+--Predict the likelihood of hypertension based on patient's age, BMI and family history of hypertension
 
 WITH prediction AS (SELECT p.patient_id,p.date_of_birth,h.bmi,h.family_history_of_hypertension, 
 CASE
@@ -155,13 +125,7 @@ CASE
 END risk_prediction
 FROM prediction
 
-/*CHALLENGE: Identify individuals at high risk of developing diabetes within a population based on smoker
-status and glucose levels
-
-- Individuals who are smokers and have glucose level more or equal to 126 are considered at High Risk
-- Individuals who are smokers and have glucose level more or equal to 100, but less than 126 are considered 
-  at Medium Risk
-- Everyone else is Low Risk*/
+---Identify individuals at high risk of diabetes based on smoker status and glucose levels
 
 With diabetes_prediction As (
 SELECT ov.patient_id, ov.visit_id, ov.smoker_status, l.result_value,
@@ -180,8 +144,7 @@ SELECT  risk_category, Count(*) population_count
 FROM diabetes_prediction
 Group by risk_category 
 
-/*Identify a cohort of patients with chronic diseases, including hypertension, hyperlipidemia, and diabetes.
-Only include patients who have visited the clinic within the last year*/
+--Identify a cohort of patients with chronic diseases, including hypertension, hyperlipidemia, and diabetes within the last year
 SELECT patient_id, visit_date, diagnosis
 FROM Healthcare_Database.dbo.outpatient_visits
 WHERE diagnosis IN ('hypertension', 'hyperlipidemia', 'diabetes') 
@@ -223,8 +186,7 @@ o.patient_id = p.patient_id
 WHERE diagnosis = 'diabetes' 
 GROUP BY  smoker_status, gender
 
-/*Develop a query to explore the different relationships between age, gender, medication prescribed and
-blood sugar control among diabetic patients who had a Fasting Blood Sugar test*/
+---Relationships between age, gender, medication prescribed and blood sugar control among diabetic patients who had a Fasting Blood Sugar test
 
 SELECT p.patient_id, p.patient_name, p.gender, 
 DATEDIFF(year, p.date_of_birth, getdate()) age,
@@ -237,7 +199,7 @@ JOIN Healthcare_Database.dbo.lab_results l ON
 o.visit_id = l.visit_id
 WHERE o.diagnosis = 'diabetes' AND l.test_name = 'Fasting Blood Sugar'
 
---KPI
+-- Determine Key Performance Indicator patient wait time
 SELECT 
 department_name,
 AVG(DATEDIFF(minute, arrival_time, admission_time)) AS avg_wait_time,
@@ -247,7 +209,7 @@ COUNT (*) AS total_appointments
 FROM [Healthcare_Database].dbo.Appointments
 GROUP BY department_name
 
---Build query to ensure patients are getting their lab test done on the same day as their visit
+- Calculate average wait time for laboratory results 
 SELECT ov.visit_id, ov.visit_date, ov.doctor_name,
 lr.test_name, lr.test_date,
 DATEDIFF(day,ov.visit_date, lr.test_date) AS days_between_visit_and_test
